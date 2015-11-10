@@ -1,0 +1,36 @@
+{
+  "name": "ipfs-obj",
+  "version": "1.0.0",
+  "description": "objects on ipfs made fun",
+  "main": "index.js",
+  "author": "Kristoffer Ström <kristoffer@rymdkoloni.se>",
+  "license": "MIT",
+  "devDependencies": {
+    "browserify": "^12.0.1",
+    "ipfs-api": "^2.7.0",
+    "mocha": "^2.3.3",
+    "precommit-hook": "^3.0.0",
+    "standard": "^5.3.1"
+  },
+  "scripts": {
+    "test": "mocha --harmony_proxies test",
+    "lint": "standard",
+    "validate": "npm ls"
+  },
+  "pre-commit": [
+    "lint",
+    "test"
+  ],
+  "dependencies": {
+    "async": "^1.5.0",
+    "stream-sink": "^1.2.0",
+    "async-replace": "^1.0.1",
+    "browserify-transform-tools": "^1.5.0",
+    "harmony-reflect": "^1.4.2",
+    "json-stable-stringify": "^1.0.0",
+    "lodash": "^3.10.1",
+    "memoize-async": "^1.0.1",
+    "path": "^0.12.7",
+    "require-resolve": "0.0.2"
+  }
+}
