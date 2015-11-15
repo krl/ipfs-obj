@@ -8,9 +8,9 @@ var sink = require('stream-sink')
 var bundle = require('./util/bundle.js')
 var Reflect = require('harmony-reflect') // eslint-disable-line
 var stringify = require('json-stable-stringify')
-var resolve = require('require-resolve')
 var memoize = require('memoize-async')
 var caller = require('./util/caller.js')
+var upath = require('path')
 
 var IpfsObject = function (ipfs) {
   var Ref = function (persisted, meta) {
@@ -90,6 +90,9 @@ var IpfsObject = function (ipfs) {
             this.links = proxyLinks(parsed.links)
             this._ = { js: parsed.js,
                        persisted: persisted }
+            if (typeof this.initMeta === 'function') {
+              this.meta = this.initMeta.call(this)
+            }
           }
           Extra.prototype = cons.prototype
           Extra.prototype.persist = persist
@@ -248,10 +251,12 @@ var IpfsObject = function (ipfs) {
       this.data = typeof constructed.data === 'undefined'
         ? {} : constructed.data
 
-      constructed.data
       this.meta = constructed.meta || {}
       this.links = constructed.links || {}
       this._ = { js: js }
+      if (typeof this.initMeta === 'function') {
+        this.meta = this.initMeta.call(this)
+      }
     }
     extra.prototype = cons.prototype
     extra.prototype.persist = persist
@@ -269,13 +274,23 @@ var IpfsObject = function (ipfs) {
       paths.push(arguments[i])
     }
 
-    var callerFile = caller()
+    var callerFile
 
     var cb = arguments[arguments.length - 1]
 
     async.map(paths, function (path, mcb) {
       if (path[0] === '.') {
-        bundle(ipfs, resolve(path, callerFile).src, function (err, res) {
+        if (!callerFile) {
+          callerFile = caller()
+        }
+
+        var resolved = upath.resolve(upath.dirname(callerFile), path)
+
+        if (!resolved) {
+          throw new Error('cannot find module ' + path)
+        }
+
+        bundle(ipfs, resolved, function (err, res) {
           if (err) return cb(err)
           fetchType(res, mcb)
         })

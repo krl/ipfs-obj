@@ -78,6 +78,20 @@ NB: ipfs-objects should be concidered immutable, and you should not be changing 
 
 Methods on objects also have to be asynchronous.
 
+## Special methods
+
+If you want ta use metadata on your objects, you need to provide a special `initMeta` method that returns an object, mapping metadata names to values, like so:
+
+```js
+MonoidAdd.prototype.initMeta = function () {
+  return {
+    count: _.reduce(this.links, function (m, n) {
+      return m + n.meta.count
+    }, this.data.count)
+  }
+} 
+```
+
 ## Memory model
 
 The memory model is lazy, if you fetch an object (say a tree root) that refers to lots of other objects, only the first one will be loaded into memory, its links table will be  populated by special Reference objects, when a method is called on a reference, this object is lazy-loaded into memory, in-place overwriting the ref, and executing the method on the newly instanciated object.

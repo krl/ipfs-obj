@@ -1,9 +1,8 @@
 var ipfs = require('ipfs-api')('localhost', 5001)
-var ipo = require('./index.js')(ipfs)
+var ipo = require('../index.js')(ipfs)
 var stringify = require('json-stable-stringify')
 var assert = require('assert')
 var async = require('async')
-var _ = require('lodash')
 
 /* global it */
 
@@ -11,6 +10,9 @@ it('should create, persist and restore FrongObject', function (done) {
   ipo.require(
     './objects/frongobject.js',
     function (FrongObject) {
+
+      console.log(FrongObject)
+
       var frong = new FrongObject(7)
 
       frong.frong(function (err, res) {
@@ -198,33 +200,27 @@ it('should allow recursive dependencies', function (done) {
 
 it('should save link metadata', function (done) {
   ipo.require(
-    './objects/mother.js',
-    './objects/child.js',
-    function (Mother, Child) {
-      var m = new Mother([
-        new Child('alice', 10),
-        new Child('berndt', 8),
-        new Child('clara', 38),
-        new Child('O))', 9001),
-        new Child('ada', 33)
+    './objects/monoid-add.js',
+    function (MonoidAdd) {
+
+      var m = new MonoidAdd([
+        new MonoidAdd([
+          new MonoidAdd([], 11)
+        ]),
+        new MonoidAdd([
+          new MonoidAdd([], 2),
+          new MonoidAdd([], 8)
+        ])
       ])
 
-      assert.equal(_.filter(m.links, function (link) {
-        return link.meta.old
-      }).length, 3)
+      assert.equal(m.meta.count, 21)
 
       m.persist(function (err, res) {
         if (err) throw err
 
-        assert(res)
-
         ipo.fetch(res, function (err, res) {
           if (err) throw err
-
-          assert.equal(_.filter(res.links, function (link) {
-            return link.meta.old
-          }).length, 3)
-
+          assert.equal(res.meta.count, 21)
           done()
         })
       })
