@@ -14,18 +14,19 @@ I made this to make constructing datastructures on top of ipfs a breeze.
 ### object definition
 
 ```js
-var ipo = require('ipfs-obj')
+module.exports = function (ipo) {
 
-var Duck = ipo.obj(function (loudness) {
-  this.data = loudness
-})
+  var Duck = ipo.obj(function (loudness) {
+    this.data = loudness
+  })
 
-Duck.prototype.quack = function (cb) {
-  if (this.data > 10) return cb(null, 'QUACK')
-  cb(null, 'Quack')
+  Duck.prototype.quack = function (cb) {
+    if (this.data > 10) return cb(null, 'QUACK')
+    cb(null, 'Quack')
+  }
+
+  return Duck
 }
-
-module.exports = Duck
 ```
 
 Using:
@@ -35,22 +36,25 @@ Using:
 var ipfs = require('ipfs-api')('localhost', 5001)
 var ipo = require('ipfs-obj')(ipfs)
 
-ipo.require('./duck.js', function (Duck) {
-  var ling = new Duck(2)
+var Duck = require('./duck.js')(ipo)
 
-  ling.quack(function (err, res) {
-    console.log('duck says', res)
-  })
+var ling = new Duck(2)
 
-  ling.persist(function (err, hash) {
+ling.quack(function (err, res) {
+  console.log('duck says', res)
+})
 
-    // we now have a hash representing the instance of our duckling
+ling.persist(function (err, hash) {
 
-    ipo.fetch(hash, function (err, res) {
+  // we now have a hash representing the instance of our duckling
 
-      // res is now the restored duckling
-      // and we can call the same method on it...
+  ipo.fetch(hash, function (err, res) {
 
+    // res is now the restored duckling
+    // and we can call the same method on it...
+
+    res.quack(function (err, res) {
+      console.log('duck says', res)
     })
   })
 })
@@ -65,7 +69,7 @@ The general structure is :
 ```js
 { data: '<Any JSON-serializable value>'
   links: '<either a {} or a [] of other ipfs-objects>'
-  meta: '<any JSON-serailizable value>' }
+  meta: '<generated metadata>' }
 ```
 
 The data portion can be arbitrary Json, and can be accessed by this.data in methods.
@@ -89,7 +93,7 @@ MonoidAdd.prototype.initMeta = function () {
       return m + n.meta.count
     }, this.data.count)
   }
-} 
+}
 ```
 
 ## Memory model
