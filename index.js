@@ -9,8 +9,6 @@ var bundle = require('./util/bundle.js')
 var Reflect = require('harmony-reflect') // eslint-disable-line
 var stringify = require('json-stable-stringify')
 var memoize = require('memoize-async')
-var caller = require('./util/caller.js')
-var upath = require('path')
 
 var IpfsObject = function (ipfs) {
   var Ref = function (persisted, meta) {
@@ -91,7 +89,7 @@ var IpfsObject = function (ipfs) {
             this._ = { js: parsed.js,
                        persisted: persisted }
             if (typeof this.initMeta === 'function') {
-              this.meta = this.initMeta.call(this)
+              this.meta = this.initMeta()
             }
           }
           Extra.prototype = cons.prototype
@@ -125,6 +123,14 @@ var IpfsObject = function (ipfs) {
 
     var links = self.links
     var linktype
+
+    if (typeof self._.js === 'string') {
+      return bundle(ipfs, this._.js, function (err, res) {
+        if (err) return cb(err)
+        self._.js = res
+        self.persist(cb)
+      })
+    }
 
     if (links instanceof Array) {
       linktype = 'l'
@@ -227,9 +233,7 @@ var IpfsObject = function (ipfs) {
         var module = {}
 
         // inject context argument
-        data = data.replace(
-            /ipo.obj *\(/,
-          'ipo.obj(' + stringify(link) + ',')
+        data = data.replace(/__filename/, stringify(link))
 
         eval(data) // eslint-disable-line
 
@@ -237,7 +241,7 @@ var IpfsObject = function (ipfs) {
           throw new Error('Module does not export a constructor')
         }
 
-        cb(null, wrapConstructor(module.exports, link))
+        cb(null, wrapConstructor(module.exports(IpoReference), link))
       })
     })
   }, function (link) {
@@ -255,7 +259,7 @@ var IpfsObject = function (ipfs) {
       this.links = constructed.links || {}
       this._ = { js: js }
       if (typeof this.initMeta === 'function') {
-        this.meta = this.initMeta.call(this)
+        this.meta = this.initMeta()
       }
     }
     extra.prototype = cons.prototype
@@ -268,51 +272,8 @@ var IpfsObject = function (ipfs) {
     return wrapConstructor(fn, context)
   }
 
-  var ipoRequire = function (pathsAndCb) {
-    var paths = []
-    for (var i = 0; i < arguments.length - 1; i++) {
-      paths.push(arguments[i])
-    }
-
-    var callerFile
-
-    var cb = arguments[arguments.length - 1]
-
-    async.map(paths, function (path, mcb) {
-      if (path[0] === '.') {
-        if (!callerFile) {
-          callerFile = caller()
-        }
-
-        var resolved = upath.resolve(upath.dirname(callerFile), path)
-
-        if (!resolved) {
-          throw new Error('cannot find module ' + path)
-        }
-
-        bundle(ipfs, resolved, function (err, res) {
-          if (err) return cb(err)
-          fetchType(res, mcb)
-        })
-      } else {
-        ipfs.object.stat(path, function (err, res) {
-          if (err) return cb(err)
-          fetchType({ Hash: res.Hash, Size: res.CumulativeSize }, mcb)
-        })
-      }
-    }, function (err, constructors) {
-      if (err) return cb(err)
-      cb.apply(this, constructors)
-    })
-  }
-
-  var IpoReference = { require: ipoRequire,
-                       obj: obj,
+  var IpoReference = { obj: obj,
                        fetch: fetch }
-
-  // FIXME, get around global for eval/browserify stuff?
-
-  global.IPO = IpoReference
 
   return IpoReference
 }

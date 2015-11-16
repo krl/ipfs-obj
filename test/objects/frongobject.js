@@ -1,11 +1,11 @@
-var ipo = require('ipfs-obj')
+module.exports = function (ipo) {
+  var FrongObject = ipo.obj(__filename, function (frongness) {
+    this.data = { frongness: frongness }
+  })
 
-var FrongObject = ipo.obj(function (frongness) {
-  this.data = { frongness: frongness }
-})
+  FrongObject.prototype.frong = function (cb) {
+    cb(null, 'i frong at level ' + this.data.frongness)
+  }
 
-FrongObject.prototype.frong = function (cb) {
-  cb(null, 'i frong at level ' + this.data.frongness)
+  return FrongObject
 }
-
-module.exports = FrongObject
