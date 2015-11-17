@@ -6,8 +6,9 @@ module.exports = function (ipo) {
   })
 
   List.prototype.frong = function (cb) {
-    async.map(this.links, function (link, mcb) {
-      link.frong(mcb)
+    var self = this
+    async.map(Object.keys(this.links), function (key, mcb) {
+      self.call(key, 'frong', mcb)
     }, cb)
   }
 

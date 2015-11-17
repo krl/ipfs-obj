@@ -3,7 +3,7 @@ var ipo = require('../index.js')(ipfs)
 var assert = require('assert')
 var async = require('async')
 
-/* global it */
+/* global describe, it */
 
 var FrongObject = require('./objects/frongobject.js')(ipo)
 
@@ -159,7 +159,6 @@ it('should allow new from within object', function (done) {
   })
 })
 
-
 var Zoo = require('./objects/zoo.js')(ipo)
 var Dog = require('./objects/dog.js')(ipo)
 var Elephant = require('./objects/elephant.js')(ipo)
@@ -167,9 +166,7 @@ var Cat = require('./objects/cat.js')(ipo)
 var Lion = require('./objects/lion.js')(ipo)
 
 describe('should allow recursive dependencies', function (done) {
-
   it('on in-memory objects', function (done) {
-
     var z = new Zoo()
     var c = new Cat()
     var d = new Dog()
@@ -178,6 +175,7 @@ describe('should allow recursive dependencies', function (done) {
     async.parallel(
       [z.cat, z.dog, z.elephant, z.lion],
       function (err, res) {
+        if (err) throw err
         assert.deepEqual(c, res[0])
         assert.deepEqual(d, res[1])
         assert.deepEqual(e, res[2])
@@ -187,7 +185,6 @@ describe('should allow recursive dependencies', function (done) {
   })
 
   it('on persisted objects', function (done) {
-
     var z = new Zoo()
     var e = new Elephant()
     var d = new Dog()
@@ -200,39 +197,39 @@ describe('should allow recursive dependencies', function (done) {
         e.persist.bind(e),
         d.persist.bind(d),
         l.persist.bind(l),
-        c.persist.bind(c),
+        c.persist.bind(c)
       ],
       function (err, persisted) {
-      async.parallel(
-        [
-          function (cb) { ipo.fetch(persisted[0], cb) },
-          function (cb) { ipo.fetch(persisted[1], cb) },
-          function (cb) { ipo.fetch(persisted[2], cb) },
-          function (cb) { ipo.fetch(persisted[3], cb) },
-          function (cb) { ipo.fetch(persisted[4], cb) },
-        ],
-        function (err, restored) {
-          async.parallel(
-            [
-              function (cb) { restored[0].elephant(cb) },
-              function (cb) { restored[0].dog(cb) },
-              function (cb) { restored[0].lion(cb) },
-              function (cb) { restored[0].cat(cb) }
-            ],
-            function (err, animals) {
-              assert.deepEqual(animals[0]._.js, restored[1]._.js)
-              assert.deepEqual(animals[1]._.js, restored[2]._.js)
-              assert.deepEqual(animals[2]._.js, restored[3]._.js)
-              assert.deepEqual(animals[3]._.js, restored[4]._.js)
-              done()
+        if (err) throw err
+        async.parallel(
+          [
+            function (cb) { ipo.fetch(persisted[0], cb) },
+            function (cb) { ipo.fetch(persisted[1], cb) },
+            function (cb) { ipo.fetch(persisted[2], cb) },
+            function (cb) { ipo.fetch(persisted[3], cb) },
+            function (cb) { ipo.fetch(persisted[4], cb) }
+          ],
+          function (err, restored) {
+            if (err) throw err
+            async.parallel(
+              [
+                function (cb) { restored[0].elephant(cb) },
+                function (cb) { restored[0].dog(cb) },
+                function (cb) { restored[0].lion(cb) },
+                function (cb) { restored[0].cat(cb) }
+              ],
+              function (err, animals) {
+                if (err) throw err
+                assert.deepEqual(animals[0]._.js, restored[1]._.js)
+                assert.deepEqual(animals[1]._.js, restored[2]._.js)
+                assert.deepEqual(animals[2]._.js, restored[3]._.js)
+                assert.deepEqual(animals[3]._.js, restored[4]._.js)
+                done()
+              })
           })
-        })
-    })
+      })
   })
 })
-
-
-// should also restore meta on fetched children!
 
 var MonoidAdd = require('./objects/monoid-add.js')(ipo)
 

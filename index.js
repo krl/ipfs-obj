@@ -6,7 +6,6 @@ var _ = require('lodash')
 var async = require('async')
 var sink = require('stream-sink')
 var bundle = require('./util/bundle.js')
-var Reflect = require('harmony-reflect') // eslint-disable-line
 var stringify = require('json-stable-stringify')
 var memoize = require('memoize-async')
 
@@ -85,7 +84,7 @@ var IpfsObject = function (ipfs) {
           var Extra = function () {
             this.data = parsed.data
             this.meta = meta
-            this.links = proxyLinks(parsed.links)
+            this.links = parsed.links
             this._ = { js: parsed.js,
                        persisted: persisted }
             if (typeof this.initMeta === 'function') {
@@ -94,6 +93,7 @@ var IpfsObject = function (ipfs) {
           }
           Extra.prototype = cons.prototype
           Extra.prototype.persist = persist
+          Extra.prototype.call = call
 
           cb(null, new Extra())
         })
@@ -188,43 +188,25 @@ var IpfsObject = function (ipfs) {
     })
   }
 
-  var ContextRef = function (ref, context) {
-    return new Proxy(ref, {
-      get: function (rec, name) {
-        if (rec[name]) return rec[name] // for meta, etc
-        if (name === 'inspect') return ref
-        return function () {
-          var args = []
-          for (var i = 0; i < arguments.length; i++) {
-            args.push(arguments[i])
-          }
-          fetch(ref._.persisted.Hash, ref.meta, function (err, res) {
-            if (err) throw err
-            context(res)
+  var call = function (linkName, method) {
+    var self = this
 
-            if (res[name]) {
-              res[name].apply(res, args)
-            } else {
-              throw new Error('No method ' + name + ' on ' + res)
-            }
-          })
-        }
-      }
-    })
-  }
+    var args = []
+    for (var i = 2; i < arguments.length; i++) {
+      args.push(arguments[i])
+    }
+    var link = this.links[linkName]
 
-  var proxyLinks = function (links) {
-    return new Proxy(links, {
-      get: function (rec, name) {
-        if (rec[name] instanceof Ref) {
-          return new ContextRef(rec[name], function (resolved) {
-            links[name] = resolved
-          })
-        } else {
-          return rec[name]
-        }
-      }
-    })
+    if (link instanceof Ref) {
+      fetch(link._.persisted.Hash, link.meta, function (err, res) {
+        if (err) throw err
+        // into memory
+        self.links[linkName] = res
+        res[method].apply(res, args)
+      })
+    } else {
+      link[method].apply(link, args)
+    }
   }
 
   var fetchType = memoize(function (link, cb) {
@@ -268,6 +250,7 @@ var IpfsObject = function (ipfs) {
     }
     extra.prototype = cons.prototype
     extra.prototype.persist = persist
+    extra.prototype.call = call
 
     return extra
   }

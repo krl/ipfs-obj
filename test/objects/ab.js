@@ -9,10 +9,10 @@ module.exports = function (ipo) {
     var self = this
     async.parallel([
       function (pcb) {
-        self.links.a.frong(pcb)
+        self.call('a', 'frong', pcb)
       },
       function (pcb) {
-        self.links.b.frong(pcb)
+        self.call('b', 'frong', pcb)
       }], cb)
   }
 

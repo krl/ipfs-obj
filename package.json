@@ -1,6 +1,6 @@
 {
   "name": "ipfs-obj",
-  "version": "2.0.2",
+  "version": "3.0.0",
   "description": "objects on ipfs made fun",
   "main": "index.js",
   "author": "Kristoffer Ström <kristoffer@rymdkoloni.se>",
