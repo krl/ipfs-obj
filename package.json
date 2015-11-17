@@ -1,6 +1,6 @@
 {
   "name": "ipfs-obj",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "objects on ipfs made fun",
   "main": "index.js",
   "author": "Kristoffer Ström <kristoffer@rymdkoloni.se>",
@@ -12,7 +12,7 @@
     "standard": "^5.3.1"
   },
   "scripts": {
-    "test": "mocha --harmony_proxies test",
+    "test": "mocha test",
     "lint": "standard",
     "validate": "npm ls"
   },

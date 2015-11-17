@@ -266,3 +266,31 @@ it('should import objects with deps', function (done) {
 
   done()
 })
+
+it('should ensure child is loaded in memory', function (done) {
+
+  var m = new Mother([
+    new Child('alice', 10),
+    new Child('berndt', 8),
+    new Child('ada', 33)
+  ])
+
+  m.links[0].load(function (err, loaded1) {
+    if (err) throw err
+
+    m.persist(function (err, res) {
+      if (err) throw err
+
+      ipo.fetch(res, function (err, res) {
+        if (err) throw err
+
+        res.links[0].load(function (err, loaded2) {
+          if (err) throw err
+
+          assert.deepEqual(loaded1, loaded2)
+          done()
+        })
+      })
+    })
+  })
+})

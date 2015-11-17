@@ -10,11 +10,6 @@ var stringify = require('json-stable-stringify')
 var memoize = require('memoize-async')
 
 var IpfsObject = function (ipfs) {
-  var Ref = function (persisted, meta) {
-    this._ = { persisted: persisted }
-    if (meta) this.meta = meta
-  }
-
   var parseObject = function (obj) {
     // bug workaround
     if (typeof obj === 'string') {
@@ -94,6 +89,7 @@ var IpfsObject = function (ipfs) {
           Extra.prototype = cons.prototype
           Extra.prototype.persist = persist
           Extra.prototype.call = call
+          Extra.prototype.load = function (cb) { cb(null, this) }
 
           cb(null, new Extra())
         })
@@ -218,9 +214,6 @@ var IpfsObject = function (ipfs) {
         // inject context argument
         data = data.replace(/__filename/, stringify(link))
 
-        // console.log('----------------------------')
-        // console.log(data)
-
         eval(data) // eslint-disable-line
 
         if (typeof module.exports !== 'function') {
@@ -251,8 +244,18 @@ var IpfsObject = function (ipfs) {
     extra.prototype = cons.prototype
     extra.prototype.persist = persist
     extra.prototype.call = call
+    extra.prototype.load = function (cb) { cb(null, this) }
 
     return extra
+  }
+
+  var Ref = function (persisted, meta) {
+    this._ = { persisted: persisted }
+    if (meta) this.meta = meta
+  }
+
+  Ref.prototype.load = function (cb) {
+    fetch(this._.persisted.Hash, cb)
   }
 
   var obj = function (context, fn) {
