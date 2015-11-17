@@ -5,9 +5,6 @@ module.exports = function (ipo) {
       name: name,
       age: age
     }
-    this.meta = {
-      old: age > 15
-    }
   })
 
   Child.prototype.ageSum = function (cb) {

@@ -20,9 +20,5 @@ module.exports = function (ipo) {
     cb(null, new Mother(this.links))
   }
 
-  Mother.prototype.gaveBirth = function (name, age, cb) {
-    cb(null, new Mother([new Child(name, age)]))
-  }
-
   return Mother
 }

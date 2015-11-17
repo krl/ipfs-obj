@@ -159,17 +159,78 @@ it('should allow new from within object', function (done) {
   })
 })
 
-it('should allow recursive dependencies', function (done) {
-  var m = new Mother([])
-  m.gaveBirth('bob', 2, function (err, newMomi) {
-    if (err) throw err
-    newMomi.ageSum(function (err, res) {
-      if (err) throw err
-      assert.equal(res, 2)
-      done()
+
+var Zoo = require('./objects/zoo.js')(ipo)
+var Dog = require('./objects/dog.js')(ipo)
+var Elephant = require('./objects/elephant.js')(ipo)
+var Cat = require('./objects/cat.js')(ipo)
+var Lion = require('./objects/lion.js')(ipo)
+
+describe('should allow recursive dependencies', function (done) {
+
+  it('on in-memory objects', function (done) {
+
+    var z = new Zoo()
+    var c = new Cat()
+    var d = new Dog()
+    var e = new Elephant()
+    var l = new Lion()
+    async.parallel(
+      [z.cat, z.dog, z.elephant, z.lion],
+      function (err, res) {
+        assert.deepEqual(c, res[0])
+        assert.deepEqual(d, res[1])
+        assert.deepEqual(e, res[2])
+        assert.deepEqual(l, res[3])
+        done()
+      })
+  })
+
+  it('on persisted objects', function (done) {
+
+    var z = new Zoo()
+    var e = new Elephant()
+    var d = new Dog()
+    var l = new Lion()
+    var c = new Cat()
+
+    async.parallel(
+      [
+        z.persist.bind(z),
+        e.persist.bind(e),
+        d.persist.bind(d),
+        l.persist.bind(l),
+        c.persist.bind(c),
+      ],
+      function (err, persisted) {
+      async.parallel(
+        [
+          function (cb) { ipo.fetch(persisted[0], cb) },
+          function (cb) { ipo.fetch(persisted[1], cb) },
+          function (cb) { ipo.fetch(persisted[2], cb) },
+          function (cb) { ipo.fetch(persisted[3], cb) },
+          function (cb) { ipo.fetch(persisted[4], cb) },
+        ],
+        function (err, restored) {
+          async.parallel(
+            [
+              function (cb) { restored[0].elephant(cb) },
+              function (cb) { restored[0].dog(cb) },
+              function (cb) { restored[0].lion(cb) },
+              function (cb) { restored[0].cat(cb) }
+            ],
+            function (err, animals) {
+              assert.deepEqual(animals[0]._.js, restored[1]._.js)
+              assert.deepEqual(animals[1]._.js, restored[2]._.js)
+              assert.deepEqual(animals[2]._.js, restored[3]._.js)
+              assert.deepEqual(animals[3]._.js, restored[4]._.js)
+              done()
+          })
+        })
     })
   })
 })
+
 
 // should also restore meta on fetched children!
 

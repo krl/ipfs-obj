@@ -119,6 +119,7 @@ var IpfsObject = function (ipfs) {
 
   var persist = function (cb) {
     var self = this
+
     if (self._ && self._.persisted) return cb(null, self)
 
     var links = self.links
@@ -234,6 +235,9 @@ var IpfsObject = function (ipfs) {
 
         // inject context argument
         data = data.replace(/__filename/, stringify(link))
+
+        // console.log('----------------------------')
+        // console.log(data)
 
         eval(data) // eslint-disable-line
 
