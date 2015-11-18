@@ -10,7 +10,9 @@ var memoize = require('memoize-async')
 
 var bundle = memoize(function (ipfs, path, cb) {
 
-  var references = {}
+  var relPath = '/' + p.relative(process.cwd(), path)
+  var selfLinks = {}
+  selfLinks[relPath] = "__IPO_SELF"
 
   // for each required module, insert a self-link
 
@@ -27,11 +29,12 @@ var bundle = memoize(function (ipfs, path, cb) {
         src = p.resolve(dirname, args[0])
       }
 
+      var rel = '/' + p.relative(process.cwd(), src)
       var data = fs.readFileSync(src).toString()
 
       if (data.match(/__filename/)) {
         bundle(ipfs, src, function (err, res) {
-          references[args[0]] = res
+          selfLinks[rel] = res
           cb(null, 'require(\'' + args[0] + '\')')
         })
       } else {
@@ -39,18 +42,16 @@ var bundle = memoize(function (ipfs, path, cb) {
       }
     })
 
-
-  var b = browserify([path], { standalone: 'bundle',
-                               detectGlobals: false})
+  var b = browserify([path], { standalone: 'bundle' })
     .transform(selfLink)
     .exclude('buffer')
     .bundle(function (err, res) {
       if (err) throw err
-      var sorted = JSON.parse(stringify(references))
       var data = res.toString()
-      _.map(sorted, function (val) {
-        data = data.replace(/__filename/, stringify(val))
+      _.map(selfLinks, function (val, key) {
+        data = data.replace("\"" + key + "\"", stringify(val))
       })
+      // console.log(data)
       ipfs.add(new Buffer(data), function (err, res) {
         if (err) return cb(err)
         ipfs.object.stat(res[0].Hash, function (err, stat) {

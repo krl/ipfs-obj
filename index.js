@@ -211,9 +211,8 @@ var IpfsObject = function (ipfs) {
       res.pipe(sink()).on('data', function (data) {
         var module = {}
 
-        // inject context argument
-        data = data.replace(/__filename/, stringify(link))
-
+        // inject self-argument
+        data = data.replace(/['"]__IPO_SELF['"]/, stringify(link))
         eval(data) // eslint-disable-line
 
         if (typeof module.exports !== 'function') {
