@@ -3,6 +3,8 @@ var ipo = require('../index.js')(ipfs)
 var assert = require('assert')
 var async = require('async')
 
+var timeout = 10000
+
 /* global describe, it */
 
 var FrongObject = require('./objects/frongobject.js')(ipo)
@@ -46,12 +48,8 @@ it('links can be a map', function (done) {
 
     ab.persist(function (err, res) {
       if (err) throw err
-
-      assert(!(res.links instanceof Array))
-
       ipo.fetch(res, function (err, res) {
         if (err) throw err
-
         res.frong(function (err, res) {
           if (err) throw err
           assert.deepEqual(res, ['i frong at level 188',
@@ -69,6 +67,8 @@ it('links can be a list', function (done) {
   var list = new List([new FrongObject(188),
                        new FrongObject(1)])
 
+  this.timeout(39999)
+
   list.frong(function (err, res) {
     if (err) throw err
     assert.deepEqual(res, ['i frong at level 188',
@@ -79,8 +79,6 @@ it('links can be a list', function (done) {
 
       ipo.fetch(res, function (err, res) {
         if (err) throw err
-
-        assert(res.links instanceof Array)
 
         res.frong(function (err, res) {
           if (err) throw err
@@ -234,6 +232,8 @@ describe('should allow recursive dependencies', function (done) {
 var MonoidAdd = require('./objects/monoid-add.js')(ipo)
 
 it('should save link metadata', function (done) {
+  this.timeout(timeout)
+
   var m = new MonoidAdd([
     new MonoidAdd([
       new MonoidAdd([], 11)
@@ -268,14 +268,13 @@ it('should import objects with deps', function (done) {
 })
 
 it('should ensure child is loaded in memory', function (done) {
-
   var m = new Mother([
     new Child('alice', 10),
     new Child('berndt', 8),
     new Child('ada', 33)
   ])
 
-  m.links[0].load(function (err, loaded1) {
+  m.data[0].load(function (err, loaded1) {
     if (err) throw err
 
     m.persist(function (err, res) {
@@ -284,7 +283,7 @@ it('should ensure child is loaded in memory', function (done) {
       ipo.fetch(res, function (err, res) {
         if (err) throw err
 
-        res.links[0].load(function (err, loaded2) {
+        res.data[0].load(function (err, loaded2) {
           if (err) throw err
 
           assert.deepEqual(loaded1, loaded2)

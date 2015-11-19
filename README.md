@@ -1,5 +1,7 @@
 
-# Ipfs-obj Duck-typed Javascript Objects on IPFS
+# Ipfs-obj Duck-typed Javascript Objects on IPFS 
+
+Docs for 4.0.0
 
 ## motivation
 
@@ -67,14 +69,11 @@ An ipfs object is expected to have certain properties, that you need to keep in 
 The general structure is :
 
 ```js
-{ data: '<Any JSON-serializable value>'
-  links: '<either a {} or a [] of other ipfs-objects>'
+{ data: '<Any JSON-serializable value + other ipfs objects>',
   meta: '<generated metadata>' }
 ```
 
-The data portion can be arbitrary Json, and can be accessed by this.data in methods.
-
-The links portion can be either a map or an array, and links the object to other objects.
+The data portion can be arbitrary Json, but also including other IPFS-objects, these will be packed up into links when the object is persisted, and appended to the data in the right place when restored.
 
 The meta property gets appended to link metadata in other objects pointing to this. The perfect place to keep your monoids! And in general, metadata on your links you will want to look at without loading the child.
 
@@ -89,7 +88,7 @@ If you want ta use metadata on your objects, you need to provide a special `init
 ```js
 MonoidAdd.prototype.initMeta = function () {
   return {
-    count: _.reduce(this.links, function (m, n) {
+    count: _.reduce(this.data.children, function (m, n) {
       return m + n.meta.count
     }, this.data.count)
   }

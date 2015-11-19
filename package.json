@@ -1,6 +1,6 @@
 {
   "name": "ipfs-obj",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "description": "objects on ipfs made fun",
   "main": "index.js",
   "author": "Kristoffer Ström <kristoffer@rymdkoloni.se>",
@@ -30,6 +30,7 @@
     "memoize-async": "^1.0.1",
     "path": "^0.12.7",
     "require-resolve": "0.0.2",
-    "stream-sink": "^1.2.0"
+    "stream-sink": "^1.2.0",
+    "traverse": "^0.6.6"
   }
 }

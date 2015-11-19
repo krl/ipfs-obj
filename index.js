@@ -6,8 +6,10 @@ var _ = require('lodash')
 var async = require('async')
 var sink = require('stream-sink')
 var bundle = require('./util/bundle.js')
+var parse = require('./util/parse-path.js')
 var stringify = require('json-stable-stringify')
 var memoize = require('memoize-async')
+var traverse = require('traverse')
 
 var IpfsObject = function (ipfs) {
   var parseObject = function (obj) {
@@ -17,38 +19,28 @@ var IpfsObject = function (ipfs) {
     }
 
     var js
-    var data = JSON.parse(obj.Data)
-    var linkmap = {}
-    var linklist = []
-    var links
+    var parsed = JSON.parse(obj.Data)
+    var meta = parsed[0]
+    var data = parsed[1]
 
     for (var i = 0; i < obj.Links.length; i++) {
       var link = obj.Links[i]
 
-      if (link.Name === '\\m') {
-        links = linkmap
-        js = { Hash: link.Hash,
-               Size: link.Size }
-      } else if (link.Name === '\\l') {
-        links = linklist
+      if (link.Name === 'js') {
         js = { Hash: link.Hash,
                Size: link.Size }
       } else {
-        var ref = new Ref({
+        var nr = parseInt(link.Name, 10)
+
+        parse.update(data, meta[nr][0], new Ref({
           Hash: link.Hash,
           Size: link.Size
-        }, data.meta[i])
-
-        linklist.push(ref)
-        linkmap[link.Name] = ref
+        }, meta[nr][1]))
       }
     }
 
-    delete data.meta
-
     return { js: js,
-             data: data,
-             links: links }
+             data: data }
   }
 
   var fetch = function (path, meta, cb) {
@@ -79,7 +71,6 @@ var IpfsObject = function (ipfs) {
           var Extra = function () {
             this.data = parsed.data
             this.meta = meta
-            this.links = parsed.links
             this._ = { js: parsed.js,
                        persisted: persisted }
             if (typeof this.initMeta === 'function') {
@@ -96,30 +87,10 @@ var IpfsObject = function (ipfs) {
       })
   }
 
-  var arrayToMap = function (array) {
-    var digits = 1
-    if (array.length > 1000) {
-      digits = 4
-    } else if (array.length > 100) {
-      digits = 3
-    } else if (array.length > 10) {
-      digits = 2
-    }
-
-    var map = {}
-    for (var i = 0; i < array.length; i++) {
-      map[('000' + i).substr(digits)] = array[i]
-    }
-    return map
-  }
-
   var persist = function (cb) {
     var self = this
 
     if (self._ && self._.persisted) return cb(null, self)
-
-    var links = self.links
-    var linktype
 
     if (typeof self._.js === 'string') {
       return bundle(ipfs, this._.js, function (err, res) {
@@ -129,44 +100,63 @@ var IpfsObject = function (ipfs) {
       })
     }
 
-    if (links instanceof Array) {
-      linktype = 'l'
-      links = arrayToMap(links)
-    } else {
-      linktype = 'm'
-    }
+    var links = []
 
-    async.map(_.pairs(self.links), function (nameLink, cbmap) {
-      var name = nameLink[0]
-      var link = nameLink[1]
-      link.persist(function (err, res) {
-        if (err) return cb(err)
-        cbmap(null, { link: { Name: name,
-                              Hash: link._.persisted.Hash,
-                              Size: link._.persisted.Size },
-                      meta: nameLink[1].meta })
-      })
+    links.push({ Name: 'js',
+                 Hash: self._.js.Hash,
+                 Size: self._.js.Size })
+
+    var data = _.clone(self.data)
+
+    // find ipfs-objects to reference
+
+    var dataPaths = traverse.paths(data)
+    var pathMap = {}
+    for (var i = 0; i < dataPaths.length; i++) {
+      var path = dataPaths[i]
+      var ref = data
+      var shortest = []
+      for (var o = 0; o < path.length; o++) {
+        if (ref) {
+          var oldref = ref
+          ref = ref[path[o]]
+          shortest.push(path[o])
+
+          if (ref && typeof ref.persist === 'function') {
+            if (oldref instanceof Array) {
+              // 0 is smaller than null in JSON
+              oldref[path[o]] = 0
+            } else {
+              delete oldref[path[o]]
+            }
+            pathMap[shortest.join('.')] = ref
+            break
+          }
+        }
+      }
+    }
+    // sort out non-unique ones and assign ids
+
+    var objectLinks = []
+    var mapping = {}
+    _.map(pathMap, function (obj, path) {
+      var idx = objectLinks.length
+      mapping[idx] = [path, obj.meta]
+      objectLinks.push(obj)
+    })
+
+    async.map(objectLinks, function (item, cb) {
+      item.persist(cb)
     }, function (err, res) {
       if (err) return cb(err)
 
-      var links = []
-      var metas = []
-
       for (var i = 0; i < res.length; i++) {
-        links.push(res[i].link)
-        metas.push(res[i].meta)
+        links.push({ Name: i + '',
+                     Hash: res[i],
+                     Size: objectLinks[i]._.persisted.Size })
       }
 
-      links.push({ Name: '\\' + linktype,
-                   Hash: self._.js.Hash,
-                   Size: self._.js.Size })
-
-      var data = _.clone(self.data)
-      if (metas.length) {
-        data.meta = metas
-      }
-
-      var buf = Buffer(stringify({ Data: stringify(data),
+      var buf = Buffer(stringify({ Data: stringify([mapping, data]),
                                    Links: links }))
 
       ipfs.object.put(buf, 'json', function (err, put) {
@@ -184,20 +174,20 @@ var IpfsObject = function (ipfs) {
     })
   }
 
-  var call = function (linkName, method) {
+  var call = function (path, method) {
     var self = this
 
     var args = []
     for (var i = 2; i < arguments.length; i++) {
       args.push(arguments[i])
     }
-    var link = this.links[linkName]
+    var link = parse.resolve(this.data, path)
 
     if (link instanceof Ref) {
       fetch(link._.persisted.Hash, link.meta, function (err, res) {
         if (err) throw err
         // into memory
-        self.links[linkName] = res
+        parse.update(self.data, path, res)
         res[method].apply(res, args)
       })
     } else {
@@ -215,10 +205,6 @@ var IpfsObject = function (ipfs) {
         data = data.replace(/['"]__IPO_SELF['"]/, stringify(link))
         eval(data) // eslint-disable-line
 
-        if (typeof module.exports !== 'function') {
-          throw new Error('Module does not export a constructor')
-        }
-
         cb(null, wrapConstructor(module.exports(IpoReference), link))
       })
     })
@@ -234,7 +220,6 @@ var IpfsObject = function (ipfs) {
         ? {} : constructed.data
 
       this.meta = constructed.meta || {}
-      this.links = constructed.links || {}
       this._ = { js: js }
       if (typeof this.initMeta === 'function') {
         this.meta = this.initMeta()

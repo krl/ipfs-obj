@@ -2,7 +2,7 @@ var async = require('async')
 
 module.exports = function (ipo) {
   var AB = ipo.obj(__filename, function (a, b) {
-    this.links = { a: a, b: b }
+    this.data = { a: a, b: b }
   })
 
   AB.prototype.frong = function (cb) {
