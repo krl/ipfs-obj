@@ -34,6 +34,35 @@ it('should create, persist and restore FrongObject', function (done) {
   })
 })
 
+it('should create, persist and restore FrongObject from ipo.require', function (done) {
+  ipo.require(
+    'QmQhZozgQLhoVMesFSNz9wwhQLcuC7wHEUztk7KQg8ioe6',
+    function (FrongObject) {
+      var frong = new FrongObject(7)
+
+      frong.frong(function (err, res) {
+        if (err) throw err
+        assert.equal(res, 'i frong at level 7')
+
+        frong.persist(function (err, res) {
+          if (err) throw err
+
+          ipo.fetch(res, function (err, res) {
+            if (err) throw err
+
+            assert.deepEqual(res, frong)
+
+            res.frong(function (err, res) {
+              if (err) throw err
+              assert.equal(res, 'i frong at level 7')
+              done()
+            })
+          })
+        })
+      })
+    })
+})
+
 var AB = require('./objects/ab.js')(ipo)
 
 it('links can be a map', function (done) {

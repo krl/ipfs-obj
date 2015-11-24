@@ -5,7 +5,7 @@
 var _ = require('lodash')
 var async = require('async')
 var sink = require('stream-sink')
-var bundle = require('./util/bundle.js')
+var bundle = require('ipfs-obj-bundle')
 var parse = require('./util/parse-path.js')
 var stringify = require('json-stable-stringify')
 var memoize = require('memoize-async')
@@ -174,6 +174,28 @@ var IpfsObject = function (ipfs) {
     })
   }
 
+  var require = function (hashesAndCb) {
+    var args = []
+    for (var i = 0; i < arguments.length; i++) {
+      args.push(arguments[i])
+    }
+
+    var cb = args[args.length - 1]
+    var hashes = args.slice(0, -1)
+
+    async.map(hashes, function (hash, mapcb) {
+      ipfs.object.stat(hash, function (err, res) {
+        if (err) return cb(err)
+        var js = { Hash: res.Hash,
+                   Size: res.CumulativeSize }
+        fetchType(js, mapcb)
+      })
+    }, function (err, res) {
+      if (err) return cb(err)
+      cb.apply(this, res)
+    })
+  }
+
   var call = function (path, method) {
     var self = this
 
@@ -247,6 +269,7 @@ var IpfsObject = function (ipfs) {
   }
 
   var IpoReference = { obj: obj,
+                       require: require,
                        fetch: fetch }
 
   return IpoReference
